@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>RAM AI Translator</title>
+<style>
+:root{color-scheme:dark;--bg:#101827;--panel:#1b293b;--line:#34465e;--accent:#56d6c2;--text:#f4f7fb;--muted:#a9b7c9}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#101827,#17263a);font:16px system-ui,Arial;color:var(--text);min-height:100vh}
+main{max-width:620px;margin:auto;padding:20px 16px 36px}.brand{display:flex;align-items:center;gap:12px;margin:8px 0 20px}.logo{width:48px;height:48px;border-radius:15px;background:linear-gradient(135deg,#56d6c2,#4588ed);display:grid;place-items:center;color:#071522;font-weight:900;font-size:20px}.brand h1{font-size:23px;margin:0}.brand p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 0}.languages{display:grid;grid-template-columns:1fr 46px 1fr;gap:8px;align-items:end}.field label{display:block;font-size:12px;color:var(--muted);margin:0 0 7px}.field select{width:100%;background:#101b2a;color:white;border:1px solid var(--line);padding:12px 8px;border-radius:11px;font-size:15px}.swap{height:43px;border:1px solid var(--line);border-radius:12px;background:#263950;color:var(--accent);font-size:21px}
+textarea{width:100%;min-height:112px;resize:vertical;background:#101b2a;border:1px solid var(--line);border-radius:13px;color:white;padding:13px;font:16px/1.5 system-ui;margin-top:10px}button{cursor:pointer}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}.btn{border:0;border-radius:12px;padding:12px 15px;font-weight:700;background:var(--accent);color:#071522;flex:1;min-width:125px}.btn.secondary{background:#2a3b52;color:white;border:1px solid var(--line)}.btn:disabled{opacity:.5;cursor:not-allowed}.result{white-space:pre-wrap;min-height:75px;line-height:1.55;font-size:18px}.hint{font-size:12px;color:var(--muted);line-height:1.5}.status{font-size:13px;color:var(--accent);min-height:20px;margin-top:8px}.small{font-size:12px;color:var(--muted)}.section-title{font-size:14px;color:var(--muted);margin:0 0 8px}
+</style>
+</head>
+<body><main>
+<div class="brand"><div class="logo">R</div><div><h1>RAM AI Translator</h1><p>Listen • Translate • Speak</p></div></div>
+<div class="card">
+ <div class="languages">
+  <div class="field"><label for="from">FROM</label><select id="from"><option value="en-US">English</option><option value="hi-IN" selected>Hindi</option><option value="id-ID">Indonesian</option><option value="fil-PH">Filipino</option><option value="kn-IN">Kannada</option></select></div>
+  <button class="swap" id="swap" title="Swap languages">⇄</button>
+  <div class="field"><label for="to">TO</label><select id="to"><option value="en">English</option><option value="hi" selected>Hindi</option><option value="id">Indonesian</option><option value="tl">Filipino</option><option value="kn">Kannada</option></select></div>
+ </div>
+</div>
+<div class="card">
+ <p class="section-title">1. SPEAK OR TYPE</p>
+ <textarea id="source" placeholder="Tap the microphone and speak, or type here..."></textarea>
+ <div class="actions"><button class="btn secondary" id="listen">🎙 Start listening</button><button class="btn" id="translate">Translate</button></div>
+ <div class="status" id="status" aria-live="polite"></div>
+</div>
+<div class="card">
+ <p class="section-title">2. TRANSLATION</p>
+ <div class="result" id="result">Your translation will appear here.</div>
+ <div class="actions"><button class="btn secondary" id="speak">🔊 Speak translation</button><button class="btn secondary" id="copy">Copy text</button></div>
+</div>
+<div class="card">
+ <p class="section-title">LIVE TRANSLATION NOTE</p>
+ <div class="hint">This first version supports microphone-to-text, online text translation, and spoken output. For StarMaker, keep this page open in Chrome using split-screen. A true floating overlay over another app needs Android overlay permission or a native Android app; this webpage cannot place itself over StarMaker.</div>
+</div>
+<p class="small">Internet is required for translation. Microphone access works only in a supported browser and after you allow permission.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const langCode=code=>code.split('-')[0];
+let recognition=null;
+function status(msg){$('status').textContent=msg}
+$('swap').onclick=()=>{let a=$('from'),b=$('to');let av=langCode(a.value),bv=b.value;let ai=[...a.options].find(o=>langCode(o.value)===bv);let bi=[...b.options].find(o=>langCode(o.value)===av);if(ai&&bi){a.value=ai.value;b.value=bi.value}else status('These languages cannot be swapped automatically.');};
+$('listen').onclick=()=>{
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){status('Speech recognition is not supported here. Try Chrome on Android.');return;}
+ if(recognition){try{recognition.stop()}catch(e){} recognition=null;$('listen').textContent='🎙 Start listening';return;}
+ recognition=new SR();recognition.lang=$('from').value;recognition.interimResults=true;recognition.continuous=false;
+ recognition.onstart=()=>{status('Listening… speak now.');$('listen').textContent='■ Stop listening';};
+ recognition.onresult=e=>{let s='';for(let i=e.resultIndex;i<e.results.length;i++)s+=e.results[i][0].transcript;$('source').value=s;};
+ recognition.onerror=e=>status('Microphone: '+e.error+'. Check browser microphone permission.');
+ recognition.onend=()=>{$('listen').textContent='🎙 Start listening';recognition=null;if($('source').value.trim())status('Voice captured. Tap Translate.');};
+ recognition.start();
+};
+$('translate').onclick=async()=>{
+ const q=$('source').value.trim();if(!q){status('Please speak or type something first.');return;}
+ const pair=langCode($('from').value)+'|'+$('to').value;
+ $('translate').disabled=true;status('Translating online…');$('result').textContent='';
+ try{
+  const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(q)+'&langpair='+encodeURIComponent(pair);
+  const r=await fetch(url);if(!r.ok)throw new Error('Translation service unavailable');
+  const data=await r.json();const translated=data?.responseData?.translatedText;
+  if(!translated)throw new Error('No translation returned');
+  $('result').textContent=translated;status('Translation ready.');
+ }catch(e){$('result').textContent='Could not translate right now. Check internet and try again.';status(e.message);}
+ finally{$('translate').disabled=false;}
+};
+$('speak').onclick=()=>{let t=$('result').textContent;if(!t||t==='Your translation will appear here.')return;let u=new SpeechSynthesisUtterance(t);u.lang=$('to').value==='tl'?'fil-PH':$('to').value; speechSynthesis.cancel();speechSynthesis.speak(u);};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('result').textContent);status('Translation copied.')}catch(e){status('Copy is not available in this browser.')}};
+</script></body></html>
